@@ -2,61 +2,51 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, ChevronDown, User, Settings, LogOut, Menu, X } from 'lucide-react';
+import { Bell, ChevronDown, User, Settings, LogOut, Menu, X, Search, Moon } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-interface NavbarProps {
-  userName?: string;
-  userRole?: string;
-}
-
-export default function Navbar({ userName = 'John Doe', userRole = 'Student' }: NavbarProps) {
+export default function Navbar() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   const notifications = [
     { id: 1, message: 'Bus BUS 102 is 5 minutes away', time: '2 mins ago', unread: true },
     { id: 2, message: 'Route changed for tomorrow', time: '1 hour ago', unread: true },
-    { id: 3, message: 'Driver update: Traffic delay expected', time: '3 hours ago', unread: false },
   ];
 
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (
-    <nav className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
-      <div className="px-6 py-4">
-        <div className="flex items-center justify-between">
-          {/* Left Section - Title */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-            
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Smart College Bus Tracking System
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">Welcome, {userName}</p>
-            </div>
-          </div>
+    <nav className="bg-white border-b border-slate-200/60 sticky top-0 z-50 backdrop-blur-md bg-white/80">
+      <div className="px-8 h-20 flex items-center justify-between">
+        {/* Left Section - Search or Context */}
+        <div className="flex items-center gap-8">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-600"
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
 
-          {/* Right Section - Actions */}
-          <div className="flex items-center gap-4">
-            {/* Quick Actions - Desktop */}
-            <div className="hidden md:flex items-center gap-2">
-              <button className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                Track Bus
-              </button>
-              <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                Schedule
-              </button>
-              <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                Routes
-              </button>
-            </div>
+          <div className="hidden lg:flex items-center gap-3 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl w-80 group focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+            <Search size={18} className="text-slate-400 group-focus-within:text-blue-500" />
+            <input
+              type="text"
+              placeholder="Search routes, buses..."
+              className="bg-transparent border-none outline-none text-sm font-semibold text-slate-700 w-full placeholder:text-slate-400"
+            />
+          </div>
+        </div>
+
+        {/* Right Section - Actions */}
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 p-1 bg-slate-50 border border-slate-200 rounded-xl">
+            <button className="p-2 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all">
+              <Moon size={20} />
+            </button>
+            <div className="w-[1px] h-4 bg-slate-200" />
 
             {/* Notifications */}
             <div className="relative">
@@ -65,130 +55,86 @@ export default function Navbar({ userName = 'John Doe', userRole = 'Student' }: 
                   setShowNotifications(!showNotifications);
                   setShowUserMenu(false);
                 }}
-                className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className={`p-2 transition-all rounded-lg ${showNotifications ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-blue-600 hover:bg-white'}`}
               >
-                <Bell size={20} className="text-gray-700" />
+                <Bell size={20} />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold">
-                    {unreadCount}
-                  </span>
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-blue-600 rounded-full border-2 border-white" />
                 )}
               </button>
 
-              {/* Notifications Dropdown */}
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900">Notifications</h3>
-                    <button className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                      Mark all as read
-                    </button>
+                <div className="absolute right-0 mt-4 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="font-black text-slate-900 text-sm uppercase tracking-wider">Notifications</h3>
+                    <span className="px-2 py-0.5 bg-blue-100 text-blue-600 rounded text-[10px] font-black uppercase tracking-tight">{unreadCount} New</span>
                   </div>
-                  <div className="max-h-96 overflow-y-auto">
+                  <div className="max-h-72 overflow-y-auto">
                     {notifications.map((notif) => (
                       <div
                         key={notif.id}
-                        className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0 ${
-                          notif.unread ? 'bg-blue-50' : ''
-                        }`}
+                        className="px-5 py-4 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors"
                       >
-                        <div className="flex items-start gap-3">
-                          <div className={`w-2 h-2 rounded-full mt-2 ${notif.unread ? 'bg-blue-600' : 'bg-gray-300'}`} />
-                          <div className="flex-1">
-                            <p className="text-sm text-gray-900">{notif.message}</p>
-                            <p className="text-xs text-gray-500 mt-1">{notif.time}</p>
-                          </div>
-                        </div>
+                        <p className="text-sm font-bold text-slate-800 line-clamp-2">{notif.message}</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">{notif.time}</p>
                       </div>
                     ))}
                   </div>
-                  <div className="px-4 py-3 border-t border-gray-200 text-center">
-                    <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                      View all notifications
-                    </button>
-                  </div>
+                  <button className="w-full py-4 text-xs font-black text-blue-600 hover:bg-blue-50 transition-colors uppercase tracking-widest border-t border-slate-100">
+                    View All Activity
+                  </button>
                 </div>
               )}
             </div>
+          </div>
 
-            {/* User Menu */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setShowUserMenu(!showUserMenu);
-                  setShowNotifications(false);
-                }}
-                className="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center text-white font-semibold">
-                  {userName.charAt(0)}
-                </div>
-                <div className="hidden md:block text-left">
-                  <p className="text-sm font-semibold text-gray-900">{userName}</p>
-                  <p className="text-xs text-gray-500">{userRole}</p>
-                </div>
-                <ChevronDown size={16} className="hidden md:block text-gray-500" />
-              </button>
+          {/* User Menu */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setShowUserMenu(!showUserMenu);
+                setShowNotifications(false);
+              }}
+              className="flex items-center gap-3 p-1 hover:bg-slate-50 rounded-2xl transition-all group"
+            >
+              <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-black shadow-inner border border-indigo-200/50 group-hover:scale-105 transition-transform uppercase">
+                {user?.name?.charAt(0) || 'U'}
+              </div>
+              <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${showUserMenu ? 'rotate-180' : ''}`} />
+            </button>
 
-              {/* User Dropdown */}
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-200">
-                    <p className="font-semibold text-gray-900">{userName}</p>
-                    <p className="text-sm text-gray-500">{userRole}</p>
-                  </div>
-                  <div className="py-2">
-                    <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
-                      <User size={16} />
-                      <span>My Profile</span>
-                    </button>
-                    <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3">
-                      <Settings size={16} />
-                      <span>Settings</span>
-                    </button>
-                  </div>
-                  <div className="border-t border-gray-200 py-2">
-                    <button className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-3">
-                      <LogOut size={16} />
-                      <span>Logout</span>
-                    </button>
-                  </div>
+            {showUserMenu && (
+              <div className="absolute right-0 mt-4 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="px-6 py-5 bg-slate-50 border-b border-slate-100">
+                  <p className="font-black text-slate-900 leading-tight">{user?.name || 'User'}</p>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">{user?.role || 'Guest'}</p>
                 </div>
-              )}
-            </div>
+                <div className="p-2">
+                  <MenuButton icon={<User size={16} />} label="My Profile" />
+                  <MenuButton icon={<Settings size={16} />} label="Settings" />
+                  <div className="h-px bg-slate-100 my-2 mx-2" />
+                  <button
+                    onClick={() => logout()}
+                    className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 rounded-xl flex items-center gap-3 font-bold transition-colors"
+                  >
+                    <LogOut size={16} />
+                    <span>Logout Account</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden mt-4 pt-4 border-t border-gray-200">
-            <div className="flex flex-col gap-2">
-              <button className="px-4 py-2 text-left text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
-                Track Bus
-              </button>
-              <button className="px-4 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
-                Schedule
-              </button>
-              <button className="px-4 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
-                Routes
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </nav>
   );
 }
 
-
-// Example usage in your page:
-// 
-// import Navbar from '@/components/Navbar';
-// 
-// export default function BusTrackerPage() {
-//   return (
-//     <div>
-//       <Navbar userName="John Doe" userRole="Student" />
-//       {/* Rest of your page content */}
-//     </div>
-// }
+function MenuButton({ icon, label }: { icon: React.ReactNode, label: string }) {
+  return (
+    <button className="w-full px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 rounded-xl flex items-center gap-3 font-bold transition-all hover:translate-x-1">
+      <span className="text-slate-400 group-hover:text-blue-600 transition-colors">{icon}</span>
+      <span>{label}</span>
+    </button>
+  );
+}

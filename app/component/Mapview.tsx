@@ -1,51 +1,97 @@
-"use client"
+"use client";
 
-import React from 'react'
-import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
+import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { useEffect } from "react";
 
-const containerStyle = {
-    width: '100%',
-    height: '500px',
-    borderRadius: '12px'
-};
+// Fix for default marker icons in Leaflet
+const DefaultIcon = L.icon({
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+});
+
+// Custom Bus Icon
+const BusIcon = L.icon({
+    iconUrl: "https://maps.google.com/mapfiles/ms/icons/bus.png",
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+});
+
+// Custom Destination Icon
+const DestinationIcon = L.icon({
+    iconUrl: "https://maps.google.com/mapfiles/ms/icons/red-dot.png",
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
 
 interface MapViewProps {
-    location: { lat: number; lng: number };
+    busLocation: {
+        lat: number;
+        lng: number;
+    } | null;
+    path?: { lat: number; lng: number }[];
+    plannedRoute?: { lat: number; lng: number }[];
 }
 
-export default function MapView({ location }: MapViewProps) {
-    const { isLoaded } = useJsApiLoader({
-        id: 'google-map-script',
-        googleMapsApiKey: "" // Add your Google Maps API Key here
-    });
+const defaultCenter: [number, number] = [12.9716, 77.5946];
 
+// Component to handle map center updates
+function ChangeView({ center }: { center: [number, number] }) {
+    const map = useMap();
+    useEffect(() => {
+        map.setView(center);
+    }, [center, map]);
+    return null;
+}
 
-    if (!isLoaded) {
-        return (
-            <div style={containerStyle} className="bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300">
-                <div className="text-center">
-                    <p className="text-gray-500 font-medium">Loading Map...</p>
-                    <p className="text-xs text-gray-400 mt-1">Please ensure you have set your Google Maps API key.</p>
-                </div>
-            </div>
-        );
-    }
+export default function MapView({ busLocation, path = [], plannedRoute = [] }: MapViewProps) {
+    const center: [number, number] = busLocation
+        ? [busLocation.lat, busLocation.lng]
+        : defaultCenter;
+
+    const leafletPath = path.map(p => [p.lat, p.lng] as [number, number]);
+    const leafletPlannedRoute = plannedRoute.map(p => [p.lat, p.lng] as [number, number]);
+    const destination = plannedRoute.length > 0 ? plannedRoute[plannedRoute.length - 1] : null;
 
     return (
-        <div className="shadow-lg rounded-xl overflow-hidden border border-gray-200">
-            <GoogleMap
-                mapContainerStyle={containerStyle}
-                center={location}
+        <div style={{ width: '100%', height: '500px' }} className="border-2 border-blue-200 rounded-lg overflow-hidden z-0">
+            <MapContainer
+                center={center}
                 zoom={14}
-                options={{
-                    zoomControl: true,
-                    streetViewControl: false,
-                    mapTypeControl: false,
-                    fullscreenControl: true,
-                }}
+                scrollWheelZoom={true}
+                style={{ height: "100%", width: "100%" }}
             >
-                <MarkerF position={location} />
-            </GoogleMap>
+                <ChangeView center={center} />
+                <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+
+                {leafletPlannedRoute.length > 0 && (
+                    <Polyline
+                        positions={leafletPlannedRoute}
+                        pathOptions={{ color: '#94a3b8', weight: 4, opacity: 0.5, dashArray: '10, 10' }}
+                    />
+                )}
+
+                {leafletPath.length > 0 && (
+                    <Polyline
+                        positions={leafletPath}
+                        pathOptions={{ color: '#3b82f6', weight: 4, opacity: 0.8 }}
+                    />
+                )}
+
+                {destination && (
+                    <Marker position={[destination.lat, destination.lng]} icon={DestinationIcon} />
+                )}
+
+                <Marker position={center} icon={BusIcon} />
+            </MapContainer>
         </div>
     );
 }
