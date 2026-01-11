@@ -2,11 +2,36 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { db } from '../../lib/firebase';
-import { doc, onSnapshot, updateDoc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, setDoc, getDoc, serverTimestamp, collection, query } from 'firebase/firestore';
 
 interface Location {
     lat: number;
     lng: number;
+}
+
+interface BusStats {
+    speed: number;
+    eta: string;
+    distance: string;
+    nextStop?: string;
+    registration?: string;
+    driverName?: string;
+    routeName?: string;
+}
+
+interface Bus {
+    id: string;
+    location: Location;
+    path: Location[];
+    plannedRoute?: Location[];
+    isSimulating: boolean;
+    stats: BusStats;
+}
+
+interface Depot {
+    id: string;
+    name: string;
+    location: Location;
 }
 
 interface BusContextType {
@@ -15,61 +40,107 @@ interface BusContextType {
     plannedRoute: Location[];
     isSimulating: boolean;
     setIsSimulating: (val: boolean) => void;
-    stats: {
-        speed: number;
-        eta: string;
-        distance: string;
-    };
+    stats: BusStats;
+    allBuses: Bus[];
+    depots: Depot[];
+    activeBusId: string;
+    setActiveBusId: (id: string) => void;
     updateBusLocation: (newLoc: Location) => Promise<void>;
+    addDepot: (name: string, location: Location) => Promise<void>;
 }
 
 const BusContext = createContext<BusContextType | undefined>(undefined);
 
-const BENGALURU_CENTER = { lat: 12.9716, lng: 77.5946 };
+const THOOTHUKUDI_CENTER = { lat: 8.7139, lng: 78.1348 };
 
 const PLANNED_ROUTE: Location[] = [
-    { lat: 12.9716, lng: 77.5946 }, // Start
-    { lat: 12.9750, lng: 77.5980 },
-    { lat: 12.9800, lng: 77.6050 },
-    { lat: 12.9850, lng: 77.6100 },
-    { lat: 12.9900, lng: 77.6150 }, // Campus destination
+    { lat: 8.7139, lng: 78.1348 }, // Start (Port area)
+    { lat: 8.7300, lng: 78.1400 },
+    { lat: 8.7450, lng: 78.1450 },
+    { lat: 8.7550, lng: 78.1400 },
+    { lat: 8.7642, lng: 78.1348 }, // Old Bus Stand area
 ];
 
 export function BusProvider({ children }: { children: React.ReactNode }) {
-    const [busLocation, setBusLocation] = useState<Location>(BENGALURU_CENTER);
-    const [path, setPath] = useState<Location[]>([BENGALURU_CENTER]);
+    const [busLocation, setBusLocation] = useState<Location>(THOOTHUKUDI_CENTER);
+    const [path, setPath] = useState<Location[]>([THOOTHUKUDI_CENTER]);
     const [plannedRoute] = useState<Location[]>(PLANNED_ROUTE);
     const [isSimulating, setIsSimulating] = useState(false);
-    const [stats, setStats] = useState({
-        speed: 45,
-        eta: "8 mins",
-        distance: "2.4 km"
+    const [stats, setStats] = useState<BusStats>({
+        speed: 35,
+        eta: "5 mins",
+        distance: "1.2 km",
+        nextStop: "V.V.D Signal",
+        registration: "TN-69-AY-4020"
     });
+    const [allBuses, setAllBuses] = useState<Bus[]>([]);
+    const [depots, setDepots] = useState<Depot[]>([]);
+    const [activeBusId, setActiveBusId] = useState("bus-402");
 
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // 1. Listen for real-time updates from Firestore
+    // 1. Listen for real-time updates from ALL buses
     useEffect(() => {
-        const busDocRef = doc(db, "buses", "bus-402");
+        const q = query(collection(db, "buses"));
 
-        const unsubscribe = onSnapshot(busDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                if (data.location) setBusLocation(data.location);
-                if (data.path) setPath(data.path);
-                if (data.isSimulating !== undefined) setIsSimulating(data.isSimulating);
-                if (data.stats) setStats(data.stats);
-            } else {
-                // Initialize doc if it doesn't exist
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const buses: Bus[] = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                buses.push({
+                    id: doc.id,
+                    location: data.location,
+                    path: data.path || [],
+                    plannedRoute: data.plannedRoute,
+                    isSimulating: !!data.isSimulating,
+                    stats: data.stats || {}
+                } as Bus);
+            });
+            setAllBuses(buses);
+
+            // Sync state with the currently ACTIVE bus
+            const currentActiveBus = buses.find(b => b.id === activeBusId);
+            if (currentActiveBus) {
+                if (currentActiveBus.location) setBusLocation(currentActiveBus.location);
+                if (currentActiveBus.path) setPath(currentActiveBus.path);
+                if (currentActiveBus.isSimulating !== undefined) setIsSimulating(currentActiveBus.isSimulating);
+                if (currentActiveBus.stats) setStats(currentActiveBus.stats);
+            }
+
+            // Fallback for primary bus-402 initialization if the whole fleet is empty
+            if (buses.length === 0 && querySnapshot.metadata.fromCache === false) {
+                // Initialize doc if it doesn't exist (Only if we have a real network response)
+                const busDocRef = doc(db, "buses", "bus-402");
                 setDoc(busDocRef, {
-                    location: BENGALURU_CENTER,
-                    path: [BENGALURU_CENTER],
+                    location: THOOTHUKUDI_CENTER,
+                    path: [THOOTHUKUDI_CENTER],
                     isSimulating: false,
-                    stats: { speed: 0, eta: "N/A", distance: "N/A" }
+                    stats: {
+                        speed: 0,
+                        eta: "N/A",
+                        distance: "N/A",
+                        registration: "TN-69-AY-4020",
+                        nextStop: "V.V.D Signal",
+                        driverName: "Muthu Kumar",
+                        routeName: "Campus Express"
+                    }
                 });
             }
         });
 
+        return () => unsubscribe();
+    }, [activeBusId]);
+
+    // Listen for real-time updates from Depots
+    useEffect(() => {
+        const q = query(collection(db, "depots"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const depotList = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...(doc.data() as Omit<Depot, 'id'>)
+            }));
+            setDepots(depotList);
+        });
         return () => unsubscribe();
     }, []);
 
@@ -77,13 +148,13 @@ export function BusProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (isSimulating) {
             intervalRef.current = setInterval(async () => {
-                const busDocRef = doc(db, "buses", "bus-402");
+                const busDocRef = doc(db, "buses", activeBusId);
                 const docSnap = await getDoc(busDocRef);
 
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    const prevLoc = data.location || BENGALURU_CENTER;
-                    const prevPath = data.path || [BENGALURU_CENTER];
+                    const prevLoc = data.location || THOOTHUKUDI_CENTER;
+                    const prevPath = data.path || [THOOTHUKUDI_CENTER];
 
                     const newLoc = {
                         lat: prevLoc.lat + (Math.random() - 0.5) * 0.0005,
@@ -105,17 +176,17 @@ export function BusProvider({ children }: { children: React.ReactNode }) {
         } else {
             if (intervalRef.current) clearInterval(intervalRef.current);
             // Sync stopping state to Firestore
-            const busDocRef = doc(db, "buses", "bus-402");
+            const busDocRef = doc(db, "buses", activeBusId);
             updateDoc(busDocRef, { isSimulating: false });
         }
 
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [isSimulating]);
+    }, [isSimulating, activeBusId]);
 
     const updateBusLocation = async (newLoc: Location) => {
-        const busDocRef = doc(db, "buses", "bus-402");
+        const busDocRef = doc(db, "buses", activeBusId);
         const docSnap = await getDoc(busDocRef);
 
         if (docSnap.exists()) {
@@ -131,6 +202,21 @@ export function BusProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const addDepot = async (name: string, location: Location) => {
+        try {
+            const depotId = name.toLowerCase().replace(/\s+/g, '-');
+            const depotRef = doc(db, "depots", depotId);
+            await setDoc(depotRef, {
+                name,
+                location,
+                createdAt: serverTimestamp()
+            });
+        } catch (error) {
+            console.error("Error adding depot:", error);
+            throw error;
+        }
+    };
+
     return (
         <BusContext.Provider value={{
             busLocation,
@@ -139,7 +225,12 @@ export function BusProvider({ children }: { children: React.ReactNode }) {
             isSimulating,
             setIsSimulating,
             stats,
-            updateBusLocation
+            allBuses,
+            depots,
+            activeBusId,
+            setActiveBusId,
+            updateBusLocation,
+            addDepot
         }}>
             {children}
         </BusContext.Provider>

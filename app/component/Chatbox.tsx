@@ -2,15 +2,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, MoreVertical, Bot, Paperclip, ShieldCheck, Zap, X } from 'lucide-react';
+import { useBus } from '../context/BusContext';
 
 export default function ChatBot() {
+    const { allBuses } = useBus();
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([
-        { id: 1, sender: 'student', text: 'Is the bus reaching soon?', time: '9:41 AM' },
-        { id: 2, sender: 'bot', text: 'The bus will arrive in about 8 minutes. It just passed Green Valley.', time: '9:42 AM' },
-        { id: 3, sender: 'driver', text: 'Almost there, 5 minutes away. Traffic is light.', time: '9:44 AM' }
+        { id: 1, sender: 'bot', text: 'Hello! I am Transit AI. I have live access to the entire fleet. How can I help you today?', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
     ]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Calculate dynamic ETA for banner (from nearest moving bus)
+    const activeMovingBus = allBuses.find(b => b.isSimulating && b.stats?.eta !== "N/A");
+    const displayEta = activeMovingBus?.stats?.eta || "Fleet Active";
 
     // Visibility state
     const [isOpen, setIsOpen] = useState(false);
@@ -130,7 +134,7 @@ export default function ChatBot() {
                 </div>
                 <div className="flex items-center gap-2">
                     <Zap size={12} className="text-amber-500 fill-amber-500" />
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">ETA: 8 MIN</span>
+                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">ETA: {displayEta}</span>
                 </div>
             </div>
 

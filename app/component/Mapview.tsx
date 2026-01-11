@@ -1,6 +1,6 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, useMap, Tooltip } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect } from "react";
@@ -27,18 +27,45 @@ const DestinationIcon = L.icon({
     iconAnchor: [16, 32],
 });
 
+const DepotIcon = L.icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/609/609803.png', // Home/Depot icon
+    iconSize: [35, 35],
+    iconAnchor: [17, 35],
+    popupAnchor: [0, -35],
+    className: 'drop-shadow-lg p-1 bg-white rounded-lg border-2 border-slate-900'
+});
+
 L.Marker.prototype.options.icon = DefaultIcon;
 
-interface MapViewProps {
-    busLocation: {
-        lat: number;
-        lng: number;
-    } | null;
-    path?: { lat: number; lng: number }[];
-    plannedRoute?: { lat: number; lng: number }[];
+interface MapLocation {
+    lat: number;
+    lng: number;
 }
 
-const defaultCenter: [number, number] = [12.9716, 77.5946];
+interface MapBus {
+    id: string;
+    location: MapLocation;
+    isSimulating: boolean;
+    stats?: {
+        registration?: string;
+    };
+}
+
+interface MapDepot {
+    id: string;
+    name: string;
+    location: MapLocation;
+}
+
+interface MapViewProps {
+    busLocation: MapLocation | null;
+    path?: MapLocation[];
+    plannedRoute?: MapLocation[];
+    buses?: MapBus[];
+    depots?: MapDepot[];
+}
+
+const defaultCenter: [number, number] = [8.7139, 78.1348];
 
 // Component to handle map center updates
 function ChangeView({ center }: { center: [number, number] }) {
@@ -49,7 +76,7 @@ function ChangeView({ center }: { center: [number, number] }) {
     return null;
 }
 
-export default function MapView({ busLocation, path = [], plannedRoute = [] }: MapViewProps) {
+export default function MapView({ busLocation, path = [], plannedRoute = [], buses = [], depots = [] }: MapViewProps) {
     const center: [number, number] = busLocation
         ? [busLocation.lat, busLocation.lng]
         : defaultCenter;
@@ -72,6 +99,21 @@ export default function MapView({ busLocation, path = [], plannedRoute = [] }: M
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
+                {/* Render Depots */}
+                {depots.map((depot) => (
+                    <Marker
+                        key={depot.id}
+                        position={[depot.location.lat, depot.location.lng]}
+                        icon={DepotIcon}
+                    >
+                        <Tooltip direction="top" offset={[0, -40]} opacity={1} permanent>
+                            <span className="font-black text-[10px] uppercase tracking-tighter text-slate-900 px-1">
+                                {depot.name}
+                            </span>
+                        </Tooltip>
+                    </Marker>
+                ))}
+
                 {leafletPlannedRoute.length > 0 && (
                     <Polyline
                         positions={leafletPlannedRoute}
@@ -90,7 +132,23 @@ export default function MapView({ busLocation, path = [], plannedRoute = [] }: M
                     <Marker position={[destination.lat, destination.lng]} icon={DestinationIcon} />
                 )}
 
-                <Marker position={center} icon={BusIcon} />
+                {/* Render All Buses */}
+                {buses && buses.map((bus) => (
+                    <Marker
+                        key={bus.id}
+                        position={[bus.location.lat, bus.location.lng]}
+                        icon={BusIcon}
+                    >
+                        <Tooltip direction="top" offset={[0, -40]} opacity={1} permanent>
+                            <span className="font-bold text-xs">{bus.stats?.registration || bus.id.toUpperCase()}</span>
+                        </Tooltip>
+                    </Marker>
+                ))}
+
+                {/* Fallback for primary bus if not in buses array (to avoid breaking) */}
+                {!buses && busLocation && (
+                    <Marker position={[busLocation.lat, busLocation.lng]} icon={BusIcon} />
+                )}
             </MapContainer>
         </div>
     );

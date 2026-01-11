@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import dynamic from 'next/dynamic';
 
 const MapView = dynamic(() => import("../component/Mapview"), {
@@ -16,7 +16,15 @@ import { Bus, Clock, MapPin, Gauge, ShieldCheck, AlertCircle, Phone, Navigation 
 import { useBus } from "../context/BusContext";
 
 export default function Dashboard() {
-    const { busLocation, path, stats, plannedRoute } = useBus();
+    const { busLocation, path, stats, plannedRoute, allBuses, depots } = useBus();
+    const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
+
+    // Derive selected bus data, fallback to default context values if none selected
+    const selectedBus = allBuses.find(b => b.id === selectedBusId) || allBuses.find(b => b.id === "bus-402") || allBuses[0];
+
+    const displayStats = selectedBus ? selectedBus.stats : stats;
+    const displayLocation = selectedBus ? selectedBus.location : busLocation;
+    const displayPath = selectedBus ? (selectedBus.path || []) : path;
 
     return (
         <div className="flex flex-col h-full bg-slate-50 p-6 space-y-6 overflow-y-auto">
@@ -24,7 +32,10 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Live Tracking</h1>
-                    <p className="text-slate-500 font-medium">Route #402 - Campus Express</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-slate-500 font-medium">Thoothukudi Fleet</p>
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-md uppercase">{allBuses.length} Active</span>
+                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-bold hover:bg-slate-50 transition-colors shadow-sm">
@@ -43,19 +54,19 @@ export default function Dashboard() {
                 <StatCard
                     icon={<Gauge className="w-5 h-5 text-indigo-600" />}
                     label="Current Speed"
-                    value={`${stats.speed} km/h`}
+                    value={`${displayStats?.speed || 0} km/h`}
                     color="bg-indigo-50"
                 />
                 <StatCard
                     icon={<Clock className="w-5 h-5 text-emerald-600" />}
                     label="Expected Arrival"
-                    value={stats.eta}
+                    value={displayStats?.eta || "N/A"}
                     color="bg-emerald-50"
                 />
                 <StatCard
                     icon={<MapPin className="w-5 h-5 text-blue-600" />}
                     label="Distance Left"
-                    value={stats.distance}
+                    value={displayStats?.distance || "N/A"}
                     color="bg-blue-50"
                 />
                 <StatCard
@@ -75,22 +86,62 @@ export default function Dashboard() {
                             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Live Signal</span>
                         </div>
                     </div>
-                    <MapView busLocation={busLocation} path={path} plannedRoute={plannedRoute} />
+                    <MapView
+                        busLocation={displayLocation}
+                        path={displayPath}
+                        plannedRoute={plannedRoute}
+                        buses={allBuses}
+                        depots={depots}
+                    />
                 </div>
 
                 {/* Sidebar Info Section */}
                 <div className="flex flex-col gap-6">
+                    {/* Fleet Selection List */}
+                    <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-200 flex flex-col h-[300px]">
+                        <h3 className="font-bold text-slate-800 mb-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Bus className="w-5 h-5 text-blue-600" />
+                                Available Fleet
+                            </div>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{allBuses.length} Total</span>
+                        </h3>
+                        <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                            {allBuses.map((bus) => (
+                                <button
+                                    key={bus.id}
+                                    onClick={() => setSelectedBusId(bus.id)}
+                                    className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between group ${(selectedBusId === bus.id || (!selectedBusId && bus.id === "bus-402"))
+                                        ? 'bg-blue-50 border-blue-200'
+                                        : 'bg-white border-slate-100 hover:border-blue-100 hover:bg-slate-50'
+                                        }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className={`p-2 rounded-xl ${(selectedBusId === bus.id || (!selectedBusId && bus.id === "bus-402")) ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>
+                                            <Bus size={16} />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-black text-slate-900 uppercase">{bus.id}</p>
+                                            <p className="text-[10px] font-bold text-slate-500">{bus.stats?.routeName || "General Route"}</p>
+                                        </div>
+                                    </div>
+                                    <div className={`w-2 h-2 rounded-full ${bus.isSimulating ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Bus Details */}
                     <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-200">
                         <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <Bus className="w-5 h-5 text-blue-600" />
-                            Bus Information
+                            <ShieldCheck className="w-5 h-5 text-blue-600" />
+                            Live Information
                         </h3>
                         <div className="space-y-4">
-                            <InfoRow label="Registration" value="KA-01-F-1234" />
-                            <InfoRow label="Driver" value="Ravi Kumar" />
-                            <InfoRow label="Capacity" value="42/50" />
-                            <InfoRow label="Next Stop" value="Green Valley" />
+                            <InfoRow label="Registration" value={displayStats?.registration || "N/A"} />
+                            <InfoRow label="Driver" value={displayStats?.driverName || "Unknown"} />
+                            <InfoRow label="Current Status" value={selectedBus?.isSimulating ? "On Route" : "Idle"} />
+                            <InfoRow label="Next Stop" value={displayStats?.nextStop || "Depot"} />
                         </div>
                     </div>
 
@@ -136,4 +187,26 @@ function InfoRow({ label, value }: { label: string, value: string }) {
             <span className="text-sm font-bold text-slate-800">{value}</span>
         </div>
     );
+}
+
+const customScrollbarStyles = `
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+  }
+`;
+
+if (typeof document !== 'undefined') {
+    const style = document.createElement('style');
+    style.textContent = customScrollbarStyles;
+    document.head.appendChild(style);
 }
