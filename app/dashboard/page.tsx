@@ -12,12 +12,31 @@ const MapView = dynamic(() => import("../component/Mapview"), {
     )
 });
 
-import { Bus, Clock, MapPin, Gauge, ShieldCheck, AlertCircle, Phone, Navigation } from "lucide-react";
+import { Bus, Clock, MapPin, Gauge, ShieldCheck, AlertCircle, Navigation, Zap } from "lucide-react";
 import { useBus } from "../context/BusContext";
 
 export default function Dashboard() {
-    const { busLocation, path, stats, plannedRoute, allBuses, depots } = useBus();
+    const {
+        busLocation,
+        path,
+        stats,
+        allBuses,
+        depots,
+        setActiveBusId,
+        isTrackingGPS,
+        setIsTrackingGPS,
+        userLocation
+    } = useBus();
     const [selectedBusId, setSelectedBusId] = useState<string | null>(null);
+    const [followActive, setFollowActive] = useState(true);
+
+    // Update local state and context when a bus is clicked
+    const handleBusSelect = (busId: string) => {
+        setSelectedBusId(busId);
+        setActiveBusId(busId);
+        setFollowActive(true);
+    };
+
 
     // Derive selected bus data, fallback to default context values if none selected
     const selectedBus = allBuses.find(b => b.id === selectedBusId) || allBuses.find(b => b.id === "bus-402") || allBuses[0];
@@ -29,23 +48,37 @@ export default function Dashboard() {
     return (
         <div className="flex flex-col h-full bg-slate-50 p-6 space-y-6 overflow-y-auto">
             {/* Top Header Section */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Live Tracking</h1>
-                    <div className="flex items-center gap-2">
-                        <p className="text-slate-500 font-medium">Thoothukudi Fleet</p>
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-md uppercase">{allBuses.length} Active</span>
+            <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Live Tracking</h1>
+                        <div className="flex items-center gap-2">
+                            <p className="text-slate-500 font-medium">Thoothukudi Fleet</p>
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-md uppercase">{allBuses.length} Active</span>
+                        </div>
                     </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-bold hover:bg-slate-50 transition-colors shadow-sm">
-                        <Phone size={18} className="text-blue-600" />
-                        Call Driver
-                    </button>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20">
-                        <Navigation size={18} />
-                        Get Directions
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setFollowActive(!followActive)}
+                            className={`flex items-center gap-2 px-4 py-2 border rounded-xl font-bold transition-all ${followActive
+                                ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                }`}
+                        >
+                            <Navigation size={18} />
+                            {followActive ? 'Following Active' : 'Fleet View'}
+                        </button>
+                        <button
+                            onClick={() => setIsTrackingGPS(!isTrackingGPS)}
+                            className={`flex items-center gap-2 px-4 py-2 border rounded-xl font-bold transition-all ${isTrackingGPS
+                                ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-500/20'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                }`}
+                        >
+                            <Zap size={18} className={isTrackingGPS ? 'animate-pulse' : ''} />
+                            {isTrackingGPS ? 'Tracking GPS' : 'Track My GPS'}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -89,9 +122,12 @@ export default function Dashboard() {
                     <MapView
                         busLocation={displayLocation}
                         path={displayPath}
-                        plannedRoute={plannedRoute}
                         buses={allBuses}
                         depots={depots}
+                        followActive={followActive}
+                        userLocation={userLocation}
+                        followUser={isTrackingGPS}
+                        activeBusId={selectedBusId || "bus-402"}
                     />
                 </div>
 
@@ -110,7 +146,7 @@ export default function Dashboard() {
                             {allBuses.map((bus) => (
                                 <button
                                     key={bus.id}
-                                    onClick={() => setSelectedBusId(bus.id)}
+                                    onClick={() => handleBusSelect(bus.id)}
                                     className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between group ${(selectedBusId === bus.id || (!selectedBusId && bus.id === "bus-402"))
                                         ? 'bg-blue-50 border-blue-200'
                                         : 'bg-white border-slate-100 hover:border-blue-100 hover:bg-slate-50'

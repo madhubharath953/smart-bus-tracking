@@ -8,7 +8,7 @@ export default function ChatBot() {
     const { allBuses } = useBus();
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([
-        { id: 1, sender: 'bot', text: 'Hello! I am Transit AI. I have live access to the entire fleet. How can I help you today?', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
+        { id: 1, sender: 'bot', text: "Hey there! I'm Transit AI, your campus transit mentor. I've got eyes on the whole fleet. Need help getting to class or tracking a bus?", time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
     ]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -150,13 +150,11 @@ export default function ChatBot() {
                                     : 'bg-white text-slate-800 border border-slate-200 rounded-t-2xl rounded-br-2xl shadow-sm'
                                 } max-w-[90%] px-4 py-3 text-xs font-bold leading-relaxed`}
                         >
-                            {msg.sender !== 'student' && (
-                                <div className="flex items-center gap-1.5 mb-1">
-                                    <p className="text-[9px] font-black uppercase tracking-[0.1em] opacity-60">
-                                        {msg.sender === 'bot' ? 'System Intel' : 'Fleet Driver'}
-                                    </p>
-                                </div>
-                            )}
+                            <div className="flex items-center gap-1.5 mb-1">
+                                <p className="text-[9px] font-black uppercase tracking-[0.1em] opacity-60">
+                                    {msg.sender === 'student' ? 'You (Student)' : msg.sender === 'bot' ? 'System Intel' : 'Fleet Driver'}
+                                </p>
+                            </div>
                             <p>{msg.text}</p>
                         </div>
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-1.5 px-2">{msg.time}</span>
